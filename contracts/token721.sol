@@ -59,6 +59,9 @@ interface IERC721 {
 contract TokenERC721 is IERC721 {
 
     using Address for address;
+    
+    bytes4 private constant _ERC721_RECEIVED = 0x150b7a02;
+
     // Token name
     string private _name;
 
@@ -73,6 +76,15 @@ contract TokenERC721 is IERC721 {
 
     // Mapping owner address to token count
     mapping(address => uint256) private _balances;
+
+    // Mapping from token ID to approved address
+    mapping (uint256 => address) private _tokenApprovals;
+
+     // Mapping from token ID to owner
+    mapping (uint256 => address) private _tokenOwner;
+
+    // Mapping from owner to operator approvals
+    mapping (address => mapping (address => bool)) private _operatorApprovals;
 
     constructor(string memory name, string memory symbol, string memory token_uri) {
         _name = name;
@@ -107,6 +119,7 @@ contract TokenERC721 is IERC721 {
 
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public virtual override {
         // TODO: Check approved or owner
+        require(_isApprovedOrOwner(msg.sender, tokenId), "ERC721: transfer caller is not owner nor approved");
         _safeTransfer(from, to, tokenId, _data);
     }
 
@@ -141,5 +154,26 @@ contract TokenERC721 is IERC721 {
 
         bytes4 retval = IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId, _data);
         return (retval == _ERC721_RECEIVED);
-    } 
+    }
+
+    function getApproved(uint256 tokenId) public view returns (address) {
+        require(_exists(tokenId), "ERC721: approved query for nonexistent token");
+
+        return _tokenApprovals[tokenId];
+    }
+
+    function isApprovedForAll(address owner, address operator) public view returns (bool) {
+        return _operatorApprovals[owner][operator];
+    }
+
+    function _exists(uint256 tokenId) internal view returns (bool) {
+        address owner = _tokenOwner[tokenId];
+        return owner != address(0);
+    }
+
+    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
+        require(_exists(tokenId), "ERC721: operator query for nonexistent token");
+        address owner = ownerOf(tokenId);
+        return (spender == owner || getApproved(tokenId) == spender || isApprovedForAll(owner, spender));
+    }
 }
